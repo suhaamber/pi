@@ -25,6 +25,7 @@
 "main"  {return MAIN; }
 "void"  {return VOID; }
 "if"    {return IF; }
+"for"   {return FOR; }
 "else"  {return ELSE; }
 "while" {return WHILE; }
 "break" {return BREAK; }
@@ -53,7 +54,7 @@
 "=" {return EQ; }
 "&&" {return AND; }
 "||" {return OR; }
-"!=" {return NEWCOMPARE; }
+"!=" {return NEQCOMPARE; }
 "!" {return NOT; }
 "%" {return MOD; }
 
