@@ -30,6 +30,8 @@
 "while" {return WHILE; }
 "break" {return BREAK; }
 "continue"  {return CONTINUE; }
+"input"	{return INPUT; }
+"output" {return OUTPUT; }
 
 [\"](.*)[\"] {return CONST_STRING; }
 [\'](.)[\'] {return CONST_CHAR; }
