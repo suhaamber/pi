@@ -14,8 +14,8 @@
 "import" {return IMPORT; }
 "{"     {return LCB; }
 "}"     {return RCB; }
-")"     {return LB; }
-"("     {return RB; }
+"("     {return LB; }
+")"     {return RB; }
 "["     {return LSB; }
 "]"     {return RCB; }
 "int"   {return INT; }
@@ -43,6 +43,7 @@
 "/*"([^*]|\*+[^*/])*\*+"/" {return COMMENT; }
 
 ","     {return COMMA; }
+";"	{return SEMICOLON; }
 "+"     {return PLUS; }
 "-"     {return MINUS; }
 "**"    {return EXP; }
@@ -61,6 +62,9 @@
 "%" {return MOD; }
 
 [a-zA-Z][a-zA-Z0-9]*  { strcpy(yylval.variable ,yytext); return VARIABLE;}
+[\n\t ]+  {/*new line or space*/}
+. {printf("invalid character sequence %s\n",yytext); exit(0);}
+
 
 %%
 
