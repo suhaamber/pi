@@ -1,0 +1,22 @@
+void main()
+{
+    int a[2][5];
+    int i; 
+    for(i = 10; i<10; i=i+1)
+    {
+        input(a[i]); 
+    }
+ 
+    int found, x;
+    input(x);  
+    found = binarySearch(a, 0, 10, x);
+ 
+    if(found==-1)
+    {
+        output("Element not found"); 
+    }
+    else 
+    {
+        output("Element found at: ", found); 
+    }   
+}
