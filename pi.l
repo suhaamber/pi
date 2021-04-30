@@ -17,7 +17,7 @@
 "("     {return LB; }
 ")"     {return RB; }
 "["     {return LSB; }
-"]"     {return RCB; }
+"]"     {return RSB; }
 "int"   {return INT; }
 "char"  {return CHAR; }
 "float" {return FLOAT; }
@@ -35,8 +35,8 @@
 
 [\"](.*)[\"] {return CONST_STRING; }
 [\'](.)[\'] {return CONST_CHAR; }
-[+-]?[0-9]+[.][0-9]+    {return CONST_FLOAT; }
-[+-]?[1-9][0-9]*     {return CONST_INT; }
+[-]?[0-9]+[.][0-9]+    {return CONST_FLOAT; }
+[-]?[1-9][0-9]*     {return CONST_INT; }
 [0]                 {return CONST_INT; }
 
 \/\/(.*) {return COMMENT; }
