@@ -21,9 +21,22 @@
 	} symbol_tables[5]; 
 
 	int current_symbol_table = -1; 
-	int in_function = 0; 
+	
+	struct function_table
+	{
+		char function_name[30];
+		int return_type, number_of_parameters; 
+		struct symbol_table_row parameters[10]; 
+	} functions[10];
 
-	extern void insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5]); 
+	int in_function = 0; 
+	int temp_number_of_parameters = 0; 
+	int number_of_functions = 0; 
+	char current_function[30]; 
+
+	extern struct symbol_table_row insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5]); 
+	extern void add_function(char var[30], int return_type); 
+	extern void add_parameters(char var[30], struct symbol_table_row parameter); 
 	extern void return_type(char var[30]);
 	extern void check_dimensions(char var[30],int is_array, int dimension_count[5]); 
 
@@ -80,12 +93,19 @@ PACKAGE: IMPORT VARIABLE
 FUNCTIONS: FUNCTION FUNCTIONS
 			|
 
-FUNCTION: DATA_TYPE FUNCTION_NAME LB  { 
+FUNCTION: DATA_TYPE VARIABLE LB  { 
 		in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
+		add_function($2, $1);
+		strcpy(current_function, $2); 
 } PARAMETER_LIST RB BLOCK
-			| DATA_TYPE FUNCTION_NAME LB RB BLOCK
+			| DATA_TYPE VARIABLE LB RB {
+		in_function = 1; 
+		current_symbol_table++; 
+		symbol_tables[current_symbol_table].var_count = -1; 
+		add_function($2, $1);
+	} BLOCK 
 
 DATA_TYPE: 	  INT {
 				$$=$1;
@@ -104,15 +124,16 @@ DATA_TYPE: 	  INT {
 			current_data_type=$1;}
 
 PARAMETER_LIST:   PARAMETER COMMA PARAMETER_LIST 
-				| PARAMETER
+				| PARAMETER 
 
 PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
-				insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
+				struct symbol_table_row parameter = insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
 				{
 					array_with_dimensions[i] = 0; 
 				}
+				add_parameters(current_function, parameter);
 			}
 			| DATA_TYPE VARIABLE {
 				dimension_count = 0; 
@@ -120,7 +141,8 @@ PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
 				{
 					array_with_dimensions[i] = 0; 
 				}
-				insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
+				struct symbol_table_row parameter = insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
+				add_parameters(current_function, parameter);
 			}
 
 MAIN_FUNC: VOID MAIN LB RB BLOCK
@@ -226,7 +248,7 @@ VAR_LIST: VARIABLE {
 				}
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);} VALUE
 
-VALUE: EQ CONSTANT 
+VALUE: EQ ELEMENT 
 		|
 
 DECLARATION_SEQUENCE: LSB CONST_INT RSB {
@@ -258,7 +280,7 @@ LOGOP: AND
 
 %%
 
-extern void insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5])
+extern struct symbol_table_row insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5])
 {
 	int i; 
 	int current_var_count = symbol_tables[current_symbol_table].var_count; 
@@ -272,12 +294,6 @@ extern void insert_to_table(char var[30], int type, int new_dim, int new_dim_seq
 		}
 	}
 
-	struct symbol_table_row
-	{
-		char var_name[30]; 
-		int data_type, dimension, dimension_sequence[5]; 
-	}; 
-
 	int temp_var_count = ++symbol_tables[current_symbol_table].var_count; 
 	strcpy(symbol_tables[current_symbol_table].var_list[temp_var_count].var_name, var);
 	symbol_tables[current_symbol_table].var_list[temp_var_count].data_type = type;
@@ -287,10 +303,49 @@ extern void insert_to_table(char var[30], int type, int new_dim, int new_dim_seq
 		symbol_tables[current_symbol_table].var_list[temp_var_count].dimension_sequence[i] = new_dim_seq[i]; 
 	}
 
-	printf("%s, %d, %d, [", var, type, new_dim);
+	printf("\n%s, %d, %d, [", var, type, new_dim);
 	for(int j = 0; j<5; j++)
 	{
-		printf("%d", new_dim_seq[j]); 
+		printf("%d ", new_dim_seq[j]); 
+	}
+
+	return symbol_tables[current_symbol_table].var_list[temp_var_count];
+}
+
+extern void add_function(char var[30], int new_type){
+	int i; 
+	extern int yylineno; 
+	for(int i=0; i<number_of_functions; i++){
+		if(strcmp(functions[i].function_name, var)==0)
+		{
+			printf("Multiple definitions of function %s in line %d", var, yylineno);
+			exit(0); 
+		}
+	}
+
+	strcpy(functions[number_of_functions].function_name, var); 
+	functions[number_of_functions].return_type = new_type; 
+	functions[number_of_functions].number_of_parameters = 0; 
+	printf("Function: %s, %d\n", var, new_type);
+	number_of_functions++; 
+}
+
+extern void add_parameters(char var[30], struct symbol_table_row parameter){
+	int i; 
+	
+	for(int i=0; i<number_of_functions; i++){
+		if(strcmp(functions[i].function_name, var)==0)
+		{
+			int temp = functions[i].number_of_parameters; 
+			strcpy(functions[i].parameters[temp].var_name, parameter.var_name);
+			functions[i].parameters[temp].data_type = parameter.data_type; 
+			functions[i].parameters[temp].dimension = parameter.dimension; 
+			for(int j = 0; j< 5; j++)
+			{
+				functions[i].parameters[temp].dimension_sequence[j] = parameter.dimension_sequence[j]; 
+			}
+			functions[i].number_of_parameters++; 
+		}
 	}
 }
 
