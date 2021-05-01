@@ -61,7 +61,7 @@
 "!" {return NOT; }
 "%" {return MOD; }
 
-[a-zA-Z][a-zA-Z0-9]*  { strcpy(yylval.variable ,yytext); return VARIABLE;}
+[a-zA-Z_][a-zA-Z0-9_]*  { strcpy(yylval.variable ,yytext); return VARIABLE;}
 [\n\t ]+  {/*new line or space*/}
 . {printf("invalid character sequence %s\n",yytext); exit(0);}
 
