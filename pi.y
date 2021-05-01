@@ -37,9 +37,10 @@
 	extern struct symbol_table_row insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5]); 
 	extern void add_function(char var[30], int return_type); 
 	extern void add_parameters(char var[30], struct symbol_table_row parameter); 
-	extern void return_type(char var[30]);
-	extern void check_dimensions(char var[30],int is_array, int dimension_count[5]); 
+	extern void check_variable(char var[30]);
+	extern void check_dimensions(char var[30],int dimensions, int dimension_count[5]); 
 
+	//check array dimensions for function calls 
 %}
 
 %union{
@@ -164,10 +165,18 @@ STATEMENTS: STATEMENT STATEMENTS
 STATEMENT: IF_BLOCK 
 	| WHILE LB EXPRESSION RB LOOP_BLOCK
 	| FOR LB ASSIGNMENT SEMICOLON EXPRESSION SEMICOLON ASSIGNMENT RB LOOP_BLOCK
-	| RETURN VARIABLE SEMICOLON
+	| RETURN VARIABLE DIMENSION_SEQUENCE {
+		check_variable($2); 
+		check_dimensions($2, dimension_count, array_with_dimensions); 
+		dimension_count = 0; 
+		for(int i=0; i<5; i++) 
+		{
+			array_with_dimensions[i] = 0; 
+		}
+	} SEMICOLON
 	| RETURN CONSTANT SEMICOLON
 	| ASSIGNMENT SEMICOLON
-	| FUNCTION_NAME LB FUNCTION_VARIABLE_LIST RB SEMICOLON
+	| FUNCTION_CALL SEMICOLON
 	| BLOCK
 	| SEMICOLON
 	| COMMENT
@@ -198,20 +207,46 @@ IF_BLOCK: IF LB EXPRESSION RB BLOCK ELSE IF_BLOCK
 
 CONSTANT: CONST_INT | CONST_FLOAT | CONST_CHAR | CONST_STRING
 
-ASSIGNMENT: VARIABLE DIMENSION_SEQUENCE EQ ASSIGNMENT_RHS
+ASSIGNMENT: VARIABLE DIMENSION_SEQUENCE {
+		check_variable($1);
+		check_dimensions($1, dimension_count, array_with_dimensions); 
+		dimension_count = 0; 
+		for(int i=0; i<5; i++) 
+		{
+			array_with_dimensions[i] = 0; 
+		}
+} EQ ASSIGNMENT_RHS
 
 ASSIGNMENT_RHS: EXPRESSION 
-				| FUNCTION_NAME LB FUNCTION_VARIABLE_LIST RB
+				| FUNCTION_CALL
+
+FUNCTION_CALL: FUNCTION_NAME LB FUNCTION_VARIABLE_LIST RB
 
 EXPRESSION: NOT EXPRESSION 
 			| EXPRESSION BINOP EXPRESSION 
 			| EXPRESSION RELOP EXPRESSION 
 			| EXPRESSION LOGOP EXPRESSION 
 			| LB EXPRESSION RB
-			| ELEMENT
+			| VARIABLE DIMENSION_SEQUENCE {
+				check_variable($1); 
+				check_dimensions($1, dimension_count, array_with_dimensions); 
+				dimension_count = 0; 
+				for(int i=0; i<5; i++) 
+				{
+					array_with_dimensions[i] = 0; 
+				}
+			}
+			| CONSTANT
 
-DIMENSION_SEQUENCE: LSB CONST_INT RSB DIMENSION_SEQUENCE
-				| LSB VARIABLE RSB DIMENSION_SEQUENCE
+DIMENSION_SEQUENCE: LSB CONST_INT RSB {
+				array_with_dimensions[dimension_count] = $2; 
+				dimension_count++; 
+} DIMENSION_SEQUENCE
+				| LSB VARIABLE RSB {
+					check_variable($2);
+					array_with_dimensions[dimension_count] = 0; 
+					dimension_count++; 
+				} DIMENSION_SEQUENCE
 				|
 
 DECLARATION: DATA_TYPE VAR_LIST 
@@ -246,9 +281,18 @@ VAR_LIST: VARIABLE {
 				{
 					array_with_dimensions[i] = 0; 
 				}
-				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);} VALUE
+				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);
+} VALUE {printf("hi");}
 
-VALUE: EQ ELEMENT 
+VALUE: EQ VARIABLE DIMENSION_SEQUENCE
+		{
+			insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
+				dimension_count = 0; 
+				for(int i=0; i<5; i++) 
+				{
+					array_with_dimensions[i] = 0; 
+				}
+		}
 		|
 
 DECLARATION_SEQUENCE: LSB CONST_INT RSB {
@@ -304,11 +348,12 @@ extern struct symbol_table_row insert_to_table(char var[30], int type, int new_d
 	}
 
 	printf("\n%s, %d, %d, [", var, type, new_dim);
+
 	for(int j = 0; j<5; j++)
 	{
 		printf("%d ", new_dim_seq[j]); 
 	}
-
+	printf("] Symbol table: %d Var_count: %d\n", current_symbol_table, temp_var_count); 
 	return symbol_tables[current_symbol_table].var_list[temp_var_count];
 }
 
@@ -347,6 +392,57 @@ extern void add_parameters(char var[30], struct symbol_table_row parameter){
 			functions[i].number_of_parameters++; 
 		}
 	}
+}
+
+extern void check_variable(char var[30]){
+	int found_in_table = 0, i, counter;
+    for(counter = current_symbol_table; counter>=0; counter--)
+    {
+        for(i=0; i<=symbol_tables[counter].var_count; i++)
+        {
+            if(strcmp(symbol_tables[counter].var_list[i].var_name, var)==0)
+            {
+                found_in_table = 1;
+                break; 
+            }
+        }
+    }
+
+	//if var not found in the table
+	if(!found_in_table)
+	{
+		extern int yylineno; 
+		printf("Variable %s undeclared. Line number %d\n", var, yylineno); 
+		exit(0);
+	}
+}
+
+extern void check_dimensions(char var[30], int dim, int array_with_dimensions[5]){
+	int i, counter; 
+	extern int yylineno;
+	for(counter = current_symbol_table; counter>=0; counter--)
+    {
+        for(i=0; i<=symbol_tables[counter].var_count; i++)
+        {
+            if(strcmp(symbol_tables[counter].var_list[i].var_name, var)==0)
+            {
+				if(dim!=symbol_tables[counter].var_list[i].dimension)
+				{
+					printf("Array dimension does not match. Line number %d\n", yylineno); 
+					exit(0); 
+				}
+				for(int j=0; j<5; j++)
+				{
+					if(array_with_dimensions[j]<0 || array_with_dimensions[j]>symbol_tables[counter].var_list[i].dimension_sequence[j])
+					{
+						printf("Array index out of bounds. Line number %d\n", yylineno); 
+						exit(0); 
+					}
+				}
+				break; 
+            }
+        }
+    }
 }
 
 int main()
