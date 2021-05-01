@@ -18,10 +18,10 @@
 ")"     {return RB; }
 "["     {return LSB; }
 "]"     {return RSB; }
-"int"   {return INT; }
-"char"  {return CHAR; }
-"float" {return FLOAT; }
-"string" {return STRING; }
+"int"   {yylval.data_type = 0; return INT; }
+"char"  {yylval.data_type = 1; return CHAR; }
+"float" {yylval.data_type = 2; return FLOAT; }
+"string" {yylval.data_type = 3;return STRING; }
 "main"  {return MAIN; }
 "void"  {return VOID; }
 "if"    {return IF; }
@@ -33,11 +33,11 @@
 "input"	{return INPUT; }
 "output" {return OUTPUT; }
 
-[\"](.*)[\"] {return CONST_STRING; }
-[\'](.)[\'] {return CONST_CHAR; }
-[-]?[0-9]+[.][0-9]+    {return CONST_FLOAT; }
-[-]?[1-9][0-9]*     {return CONST_INT; }
-[0]                 {return CONST_INT; }
+[\"](.*)[\"] { strcpy(yylval.const_string, yytext);  return CONST_STRING; }
+[\'](.)[\'] { yylval.const_char = yytext[1]; return CONST_CHAR; }
+[-]?[0-9]+[.][0-9]+    {yylval.const_float = atof(yytext); return CONST_FLOAT; }
+[-]?[1-9][0-9]*     {yylval.const_int = atoi(yytext); return CONST_INT; }
+[0]                 {yylval.const_int = 0; return CONST_INT; }
 
 \/\/(.*) {return COMMENT; }
 "/*"([^*]|\*+[^*/])*\*+"/" {return COMMENT; }
