@@ -21,6 +21,7 @@
 	} symbol_tables[5]; 
 
 	int current_symbol_table = -1; 
+	int in_function = 0; 
 
 	extern void insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5]); 
 	extern void return_type(char var[30]);
@@ -79,7 +80,11 @@ PACKAGE: IMPORT VARIABLE
 FUNCTIONS: FUNCTION FUNCTIONS
 			|
 
-FUNCTION: DATA_TYPE FUNCTION_NAME LB PARAMETER_LIST RB BLOCK
+FUNCTION: DATA_TYPE FUNCTION_NAME LB  { 
+		in_function = 1; 
+		current_symbol_table++; 
+		symbol_tables[current_symbol_table].var_count = -1; 
+} PARAMETER_LIST RB BLOCK
 			| DATA_TYPE FUNCTION_NAME LB RB BLOCK
 
 DATA_TYPE: 	  INT {
@@ -101,16 +106,34 @@ DATA_TYPE: 	  INT {
 PARAMETER_LIST:   PARAMETER COMMA PARAMETER_LIST 
 				| PARAMETER
 
-PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE
-			| DATA_TYPE VARIABLE
+PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
+				insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
+				dimension_count = 0; 
+				for(int i=0; i<5; i++) 
+				{
+					array_with_dimensions[i] = 0; 
+				}
+			}
+			| DATA_TYPE VARIABLE {
+				dimension_count = 0; 
+				for(int i=0; i<5; i++) 
+				{
+					array_with_dimensions[i] = 0; 
+				}
+				insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
+			}
 
 MAIN_FUNC: VOID MAIN LB RB BLOCK
 
 BLOCK: LCB {
+	if(!in_function)
+	{
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
+	}
 } STATEMENTS RCB {
 	current_symbol_table--; 
+	in_function = 0; 
 }
 
 STATEMENTS: STATEMENT STATEMENTS
@@ -203,7 +226,7 @@ VAR_LIST: VARIABLE {
 				}
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);} VALUE
 
-VALUE: EQ ELEMENT 
+VALUE: EQ CONSTANT 
 		|
 
 DECLARATION_SEQUENCE: LSB CONST_INT RSB {
