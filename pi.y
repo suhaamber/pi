@@ -259,6 +259,11 @@ ELEMENT: CONSTANT {
 					}
 				}
 			}
+			dimension_count = 0; 
+			for(int i=0; i<5; i++) 
+			{
+				array_with_dimensions[i] = 0; 
+			}
 		}
 
 LOOP_BLOCK: LCB LOOP_STATEMENTS RCB
@@ -325,7 +330,7 @@ VAR_LIST: VARIABLE {
 			array_with_dimensions[i] = 0; 
 		}
 		insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);
-} VALUE COMMA VAR_LIST 
+} COMMA VAR_LIST 
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
@@ -341,7 +346,7 @@ VAR_LIST: VARIABLE {
 					array_with_dimensions[i] = 0; 
 				}
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);
-} VALUE 
+}  
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
@@ -351,22 +356,6 @@ VAR_LIST: VARIABLE {
 				}
 			}
 			
-
-VALUE: EQ VARIABLE DIMENSION_SEQUENCE
-		{
-			check_variable($2); 
-			check_dimensions($2, dimension_count, array_with_dimensions); 
-			dimension_count = 0; 
-			for(int i=0; i<5; i++) 
-			{
-				array_with_dimensions[i] = 0; 
-			}
-		}
-		| EQ CONSTANT {
-			//also not working?
-		}
-		| /*EPSILON*/
-
 DECLARATION_SEQUENCE: LSB CONST_INT RSB {
 	array_with_dimensions[dimension_count] = $2; 
 	dimension_count++;
