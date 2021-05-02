@@ -34,13 +34,19 @@
 	int number_of_functions = 0; 
 	char current_function[30]; 
 
+
 	extern struct symbol_table_row insert_to_table(char var[30], int type, int new_dim, int new_dim_seq[5]); 
 	extern void add_function(char var[30], int return_type); 
 	extern void add_parameters(char var[30], struct symbol_table_row parameter); 
+	extern void check_function(char var[30]);
+	extern void check_parameters(); 
 	extern void check_variable(char var[30]);
 	extern void check_dimensions(char var[30],int dimensions, int dimension_count[5]); 
+	extern struct symbol_table_row return_symbol_table_row(char var[30]); 
 
 	//check array dimensions for function calls 
+	//pass constants to functions 
+
 %}
 
 %union{
@@ -182,15 +188,78 @@ STATEMENT: IF_BLOCK
 	| COMMENT
 	| DECLARATION SEMICOLON
 
-FUNCTION_NAME: VARIABLE 
-				| INPUT 
-				| OUTPUT
+FUNCTION_CALL: FUNCTION_NAME LB { 
+	temp_number_of_parameters = 0;
+} FUNCTION_VARIABLE_LIST {
+	for(int i = 0; i <= number_of_functions; i++)
+	{
+		if(strcmp(functions[i].function_name, current_function)==0)
+		{
+			if(functions[i].number_of_parameters!=temp_number_of_parameters)
+			{
+				printf("Function %s needs %d parameters.", current_function, functions[i].number_of_parameters);
+				exit(0); 
+			}
+		}
+	}
+ }RB
+
+FUNCTION_NAME: VARIABLE { 
+			check_function($1);
+			strcpy(current_function, $1); 				
+			}
+				| INPUT {
+			strcpy(current_function, "input"); 						
+				}
+				| OUTPUT {
+			strcpy(current_function, "output"); 									
+				}
 
 FUNCTION_VARIABLE_LIST: ELEMENT COMMA FUNCTION_VARIABLE_LIST 
 						| ELEMENT
 
-ELEMENT: CONSTANT 
-		| VARIABLE DIMENSION_SEQUENCE
+ELEMENT: CONSTANT {
+		if(strcmp(current_function, "input")==0)
+		{
+			extern int yylineno; 
+			printf("Cannot input literal. Line number: %d\n", yylineno);
+			exit(0); 
+		}
+		
+		temp_number_of_parameters++; 
+}
+		| VARIABLE DIMENSION_SEQUENCE {
+			check_variable($1); 
+			temp_number_of_parameters++; 
+			if(strcmp(current_function, "input")!=0 && strcmp(current_function, "output")!=0)
+			{
+				struct symbol_table_row current_parameter = return_symbol_table_row($1); 
+				for(int i = 0; i < number_of_functions; i++)
+				{
+					if(strcmp(functions[i].function_name, current_function)==0)
+					{
+						int j = temp_number_of_parameters - 1;
+						//check type 
+						if(current_parameter.data_type != functions[i].parameters[j].data_type)
+						{
+							printf("Data type of %dth parameter for function %s() does not match.\n", j, $1); 
+							exit(0);
+						}
+
+						int a = functions[i].parameters[j].dimension; 
+						int b = current_parameter.dimension; 
+						int c = dimension_count; 
+						//check dimensions
+						if(c!=(b-a))
+						{
+							printf("Array dimension don't match for %dth parameter for function %s().\n", j, $1); 
+							exit(0); 
+						}
+						
+					}
+				}
+			}
+		}
 
 LOOP_BLOCK: LCB LOOP_STATEMENTS RCB
 
@@ -219,8 +288,6 @@ ASSIGNMENT: VARIABLE DIMENSION_SEQUENCE {
 
 ASSIGNMENT_RHS: EXPRESSION 
 				| FUNCTION_CALL
-
-FUNCTION_CALL: FUNCTION_NAME LB FUNCTION_VARIABLE_LIST RB
 
 EXPRESSION: NOT EXPRESSION 
 			| EXPRESSION BINOP EXPRESSION 
@@ -267,6 +334,14 @@ VAR_LIST: VARIABLE {
 					array_with_dimensions[i] = 0; 
 				}
 			} COMMA VAR_LIST
+			| VARIABLE {
+				dimension_count = 0; 
+				for(int i=0; i<5; i++) 
+				{
+					array_with_dimensions[i] = 0; 
+				}
+				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);
+} VALUE 
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
@@ -275,25 +350,22 @@ VAR_LIST: VARIABLE {
 					array_with_dimensions[i] = 0; 
 				}
 			}
-			| VARIABLE {
-				dimension_count = 0; 
-				for(int i=0; i<5; i++) 
-				{
-					array_with_dimensions[i] = 0; 
-				}
-				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions);
-} VALUE {printf("hi");}
+			
 
 VALUE: EQ VARIABLE DIMENSION_SEQUENCE
 		{
-			insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
-				dimension_count = 0; 
-				for(int i=0; i<5; i++) 
-				{
-					array_with_dimensions[i] = 0; 
-				}
+			check_variable($2); 
+			check_dimensions($2, dimension_count, array_with_dimensions); 
+			dimension_count = 0; 
+			for(int i=0; i<5; i++) 
+			{
+				array_with_dimensions[i] = 0; 
+			}
 		}
-		|
+		| EQ CONSTANT {
+			//also not working?
+		}
+		| /*EPSILON*/
 
 DECLARATION_SEQUENCE: LSB CONST_INT RSB {
 	array_with_dimensions[dimension_count] = $2; 
@@ -357,6 +429,20 @@ extern struct symbol_table_row insert_to_table(char var[30], int type, int new_d
 	return symbol_tables[current_symbol_table].var_list[temp_var_count];
 }
 
+extern struct symbol_table_row return_symbol_table_row(char var[30]){
+	int counter, i; 
+	for(counter = current_symbol_table; counter>=0; counter--)
+    {
+        for(i=0; i<=symbol_tables[counter].var_count; i++)
+        {
+            if(strcmp(symbol_tables[counter].var_list[i].var_name, var)==0)
+            {
+				return symbol_tables[counter].var_list[i]; 
+			}
+		}
+	}
+}
+
 extern void add_function(char var[30], int new_type){
 	int i; 
 	extern int yylineno; 
@@ -389,7 +475,7 @@ extern void add_parameters(char var[30], struct symbol_table_row parameter){
 			{
 				functions[i].parameters[temp].dimension_sequence[j] = parameter.dimension_sequence[j]; 
 			}
-			functions[i].number_of_parameters++; 
+			functions[i].number_of_parameters++;
 		}
 	}
 }
@@ -443,6 +529,24 @@ extern void check_dimensions(char var[30], int dim, int array_with_dimensions[5]
             }
         }
     }
+}
+
+extern void check_function(char var[30]){
+	int i, found = 0; 
+	for(i = 0; i<number_of_functions; i++)
+	{
+		if(strcmp(functions[i].function_name, var)==0)
+		{
+			found = 1; 
+			break; 
+		}
+	}
+
+	extern int yylineno; 
+	if(!found){
+		printf("Function %s() not defined. Line number: %d.\n", var, yylineno);
+		exit(0); 
+	}
 }
 
 int main()
