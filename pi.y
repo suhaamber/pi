@@ -6,6 +6,7 @@
 	int yyerror(const char *s);
     int success=1; 
 	int current_data_type, dimension_count = 0; 
+	int in_loop = 0; 
 	int array_with_dimensions[5]; 
 
 	struct symbol_table_row
@@ -169,8 +170,8 @@ STATEMENTS: STATEMENT STATEMENTS
 			|
 
 STATEMENT: IF_BLOCK 
-	| WHILE LB EXPRESSION RB LOOP_BLOCK
-	| FOR LB ASSIGNMENT SEMICOLON EXPRESSION SEMICOLON ASSIGNMENT RB LOOP_BLOCK
+	| WHILE { in_loop = 1;} LB EXPRESSION RB BLOCK { in_loop=0; }
+	| FOR { in_loop = 1;} LB ASSIGNMENT SEMICOLON EXPRESSION SEMICOLON ASSIGNMENT RB BLOCK { in_loop = 0;}
 	| RETURN VARIABLE DIMENSION_SEQUENCE {
 		check_variable($2); 
 		check_dimensions($2, dimension_count, array_with_dimensions); 
@@ -187,6 +188,18 @@ STATEMENT: IF_BLOCK
 	| SEMICOLON
 	| COMMENT
 	| DECLARATION SEMICOLON
+	| BREAK {
+		if(!in_loop) {
+			printf("Break statement called outside a loop block.\n");
+			exit(0);
+		}
+	} SEMICOLON
+	| CONTINUE {
+		if(!in_loop) {
+			printf("Break statement called outside a loop block.\n");
+			exit(0);
+		}
+	} SEMICOLON
 
 FUNCTION_CALL: FUNCTION_NAME LB { 
 	temp_number_of_parameters = 0;
@@ -265,15 +278,6 @@ ELEMENT: CONSTANT {
 				array_with_dimensions[i] = 0; 
 			}
 		}
-
-LOOP_BLOCK: LCB LOOP_STATEMENTS RCB
-
-LOOP_STATEMENTS: LOOP_STATEMENT LOOP_STATEMENTS 
-				| 
-
-LOOP_STATEMENT: STATEMENT 
-				| BREAK 
-				| CONTINUE 
 
 IF_BLOCK: IF LB EXPRESSION RB BLOCK ELSE IF_BLOCK
 	| IF LB EXPRESSION RB BLOCK ELSE BLOCK  
