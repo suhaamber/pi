@@ -7,6 +7,7 @@
     int success=1; 
 	int current_data_type, dimension_count = 0; 
 	int in_loop = 0; 
+	int number_of_tabs = 0; 
 	int array_with_dimensions[5]; 
 
 	struct symbol_table_row
@@ -93,31 +94,33 @@ char const_string[100];
 %%
 PROGRAM: PACKAGES FUNCTIONS MAIN_FUNC
 
-PACKAGES: 	PACKAGE PACKAGES 
+PACKAGES: 	PACKAGE {printf("\n"); } PACKAGES 
 			| 
 
-PACKAGE: IMPORT VARIABLE
+PACKAGE: IMPORT { printf("import "); } VARIABLE { printf("%s", $3); }
 
-FUNCTIONS: FUNCTION FUNCTIONS
+FUNCTIONS: FUNCTION {printf("\n"); } FUNCTIONS
 			|
 
-FUNCTION: DATA_TYPE VARIABLE LB  { 
+FUNCTION: DATA_TYPE VARIABLE { printf("def %s(", $2); }LB  { 
 		in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
 		strcpy(current_function, $2); 
-} PARAMETER_LIST RB BLOCK
+} PARAMETER_LIST RB { printf(")\n"); } BLOCK
 			| DATA_TYPE VARIABLE LB RB {
 		in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
+		printf("def %s()\n", $2); 
 	} BLOCK 
 
 DATA_TYPE: 	  INT {
 				$$=$1;
 			current_data_type=$1;
+
 			}
 			| CHAR {
 				$$=$1;
@@ -142,6 +145,7 @@ PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
 					array_with_dimensions[i] = 0; 
 				}
 				add_parameters(current_function, parameter);
+				printf("%s, ", $2);
 			}
 			| DATA_TYPE VARIABLE {
 				dimension_count = 0; 
