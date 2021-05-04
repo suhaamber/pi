@@ -7,6 +7,9 @@
     int success=1; 
 	int current_data_type, dimension_count = 0; 
 	int in_loop = 0; 
+	int number_of_tabs = 0; 
+	int is_main = 0; 
+	int temp_input = 0;
 	int array_with_dimensions[5]; 
 
 	struct symbol_table_row
@@ -30,7 +33,14 @@
 		struct symbol_table_row parameters[10]; 
 	} functions[10];
 
-	//int in_function = 0; 
+	struct for_translation
+	{
+		char var[30], var_for_control[30];
+		int init, control, increment; 
+	} for_record; 
+	int in_for = 0; 
+	int for_init = 0;
+	int for_assign = 0; 
 	int temp_number_of_parameters = 0; 
 	int number_of_functions = 0; 
 	char current_function[30]; 
@@ -44,9 +54,7 @@
 	extern void check_variable(char var[30]);
 	extern void check_dimensions(char var[30],int dimensions, int dimension_count[5]); 
 	extern struct symbol_table_row return_symbol_table_row(char var[30]); 
-
-	//check array dimensions for function calls 
-	//pass constants to functions 
+	extern void print_tabs(); 
 
 %}
 
@@ -57,6 +65,7 @@ int const_int;
 float const_float; 
 char const_char; 
 char const_string[100];
+char comment[150]; 
 }
 
 %token IMPORT LCB RCB LB RB LSB RSB
@@ -87,37 +96,39 @@ char const_string[100];
 %type<const_float>CONST_FLOAT
 %type<const_string>CONST_STRING
 %type<const_char>CONST_CHAR
+%type<comment>COMMENT
 
 %start PROGRAM
 
 %%
-PROGRAM: PACKAGES FUNCTIONS MAIN_FUNC
+PROGRAM: PACKAGES FUNCTIONS MAIN_FUNC { printf("\nmain_func()\n\n");}
 
-PACKAGES: 	PACKAGE PACKAGES 
+PACKAGES: 	PACKAGE {printf("\n"); } PACKAGES 
 			| 
 
-PACKAGE: IMPORT VARIABLE
+PACKAGE: IMPORT { printf("import "); } VARIABLE { printf("%s", $3); }
 
-FUNCTIONS: FUNCTION FUNCTIONS
+FUNCTIONS: FUNCTION {printf("\n"); } FUNCTIONS
 			|
 
 FUNCTION: DATA_TYPE VARIABLE LB  { 
-		//in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
 		strcpy(current_function, $2); 
-} PARAMETER_LIST RB BLOCK
+		printf("def %s(", $2); 
+} PARAMETER_LIST RB {printf("):\n"); } BLOCK
 			| DATA_TYPE VARIABLE LB RB {
-		//in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
+		printf("def %s()\n", $2); 
 	} BLOCK 
 
 DATA_TYPE: 	  INT {
 				$$=$1;
 			current_data_type=$1;
+
 			}
 			| CHAR {
 				$$=$1;
@@ -131,10 +142,10 @@ DATA_TYPE: 	  INT {
 				$$=$1;
 			current_data_type=$1;}
 
-PARAMETER_LIST:   PARAMETER COMMA PARAMETER_LIST 
+PARAMETER_LIST:   PARAMETER COMMA { printf(","); } PARAMETER_LIST 
 				| PARAMETER 
 
-PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
+PARAMETER: DATA_TYPE VARIABLE { printf("%s", $2); } DECLARATION_SEQUENCE {
 				struct symbol_table_row parameter = insert_to_table($2, current_data_type, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
@@ -144,6 +155,7 @@ PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
 				add_parameters(current_function, parameter);
 			}
 			| DATA_TYPE VARIABLE {
+				printf("%s", $2);
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
 				{
@@ -153,23 +165,42 @@ PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
 				add_parameters(current_function, parameter);
 			}
 
-MAIN_FUNC: VOID MAIN LB RB BLOCK
+MAIN_FUNC: VOID MAIN LB RB { printf("def main_func():\n"); } BLOCK
 
 BLOCK: LCB {
+		number_of_tabs++; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 } STATEMENTS RCB {
+	number_of_tabs--; 
 	current_symbol_table--; 
-	
 }
 
 STATEMENTS: STATEMENT STATEMENTS
 			|
 
-STATEMENT: IF_BLOCK 
-	| WHILE { in_loop = 1;} LB EXPRESSION RB BLOCK { in_loop=0; }
-	| FOR { in_loop = 1;} LB ASSIGNMENT SEMICOLON EXPRESSION SEMICOLON ASSIGNMENT RB BLOCK { in_loop = 0;}
-	| RETURN VARIABLE DIMENSION_SEQUENCE {
+STATEMENT: {print_tabs();} IF_BLOCK 
+	| WHILE { 
+		in_loop = 1;
+		print_tabs(); 
+		printf("while "); 
+} LB EXPRESSION RB { printf(" :\n"); } BLOCK { in_loop=0; }
+	| FOR { in_loop = 1;
+		in_for = 1; 
+		for_init = 1;
+		print_tabs();  
+		} LB ASSIGNMENT SEMICOLON { for_init = 0; } EXPRESSION SEMICOLON { for_assign = 1;} ASSIGNMENT RB {
+		for_assign = 0; 
+		in_for = 0;
+		if(for_record.control!=0)
+			printf("for %s in range(%d, %d, %d):\n", for_record.var, for_record.init, for_record.control, for_record.increment); 
+		else 
+			printf("for %s in range(%d, %s, %d):\n", for_record.var, for_record.init, for_record.var_for_control, for_record.increment); 
+		 } BLOCK { in_loop = 0;}
+	| RETURN VARIABLE {
+		print_tabs(); 
+		printf("return %s", $2);
+	} DIMENSION_SEQUENCE  {
 		check_variable($2); 
 		check_dimensions($2, dimension_count, array_with_dimensions); 
 		dimension_count = 0; 
@@ -177,29 +208,38 @@ STATEMENT: IF_BLOCK
 		{
 			array_with_dimensions[i] = 0; 
 		}
-	} SEMICOLON
-	| RETURN CONSTANT SEMICOLON
-	| ASSIGNMENT SEMICOLON
-	| FUNCTION_CALL SEMICOLON
-	| BLOCK
-	| SEMICOLON
-	| COMMENT
+	} SEMICOLON {printf("\n");}
+	| RETURN { print_tabs(); printf("return "); } CONSTANT SEMICOLON {printf("\n");}
+	| {print_tabs();} ASSIGNMENT SEMICOLON {printf("\n");}
+	| { print_tabs(); } FUNCTION_CALL SEMICOLON {printf("\n");}
+	| {print_tabs();} BLOCK
+	| SEMICOLON { print_tabs(); printf("\n");}
+	| COMMENT { print_tabs(); 
+				printf("#%s", $1);}
 	| DECLARATION SEMICOLON
 	| BREAK {
 		if(!in_loop) {
 			printf("Break statement called outside a loop block.\n");
 			exit(0);
 		}
-	} SEMICOLON
+		print_tabs(); 
+		printf("break");
+	} SEMICOLON {
+		print_tabs(); 
+		printf("\n");}
 	| CONTINUE {
 		if(!in_loop) {
-			printf("Break statement called outside a loop block.\n");
+			printf("Continue statement called outside a loop block.\n");
 			exit(0);
 		}
-	} SEMICOLON
+		print_tabs(); 
+		printf("continue"); 
+	} SEMICOLON {printf("\n");}
 
 FUNCTION_CALL: FUNCTION_NAME LB { 
 	temp_number_of_parameters = 0;
+	if(strcmp(current_function, "input")!=0)
+		printf("(");
 } FUNCTION_VARIABLE_LIST {
 	for(int i = 0; i <= number_of_functions; i++)
 	{
@@ -212,20 +252,35 @@ FUNCTION_CALL: FUNCTION_NAME LB {
 			}
 		}
 	}
- }RB
+ }RB { 
+	 	if(strcmp(current_function, "input")!=0)
+			printf(")"); 
+			}
 
 FUNCTION_NAME: VARIABLE { 
+			printf("%s", $1); 
 			check_function($1);
 			strcpy(current_function, $1); 				
 			}
 				| INPUT {
+			temp_input = 1; 
 			strcpy(current_function, "input"); 						
 				}
 				| OUTPUT {
+			printf("print"); 
 			strcpy(current_function, "output"); 									
 				}
 
-FUNCTION_VARIABLE_LIST: ELEMENT COMMA FUNCTION_VARIABLE_LIST 
+FUNCTION_VARIABLE_LIST: ELEMENT COMMA {
+	if(strcmp(current_function, "output")==0)
+	{
+		printf(" + ");
+	}
+	else if(strcmp(current_function, "input")!=0)
+	{
+	printf(",");
+	}
+ } FUNCTION_VARIABLE_LIST 
 						| ELEMENT
 
 ELEMENT: CONSTANT {
@@ -238,7 +293,16 @@ ELEMENT: CONSTANT {
 		
 		temp_number_of_parameters++; 
 }
-		| VARIABLE DIMENSION_SEQUENCE {
+		| VARIABLE {
+				if(strcmp(current_function, "input")!=0)
+					printf("%s", $1); 
+				else
+				{
+					if(!temp_input) print_tabs();
+					temp_input = 0; 
+					printf("%s", $1);
+				}
+		} DIMENSION_SEQUENCE {
 			check_variable($1); 
 			temp_number_of_parameters++; 
 			if(strcmp(current_function, "input")!=0 && strcmp(current_function, "output")!=0)
@@ -274,15 +338,34 @@ ELEMENT: CONSTANT {
 			{
 				array_with_dimensions[i] = 0; 
 			}
+			if(strcmp(current_function, "input")==0)
+			printf("= input()\n"); 
 		}
 
-IF_BLOCK: IF LB EXPRESSION RB BLOCK ELSE IF_BLOCK
-	| IF LB EXPRESSION RB BLOCK ELSE BLOCK  
-	| IF LB EXPRESSION RB BLOCK 
+IF_BLOCK:  
+	 IF { printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK ELSE { print_tabs(); printf("else:\n");} BLOCK  
+	| IF {printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK 
 
-CONSTANT: CONST_INT | CONST_FLOAT | CONST_CHAR | CONST_STRING
+CONSTANT: CONST_INT {
+		if(!in_for)
+		printf("%d", $1);
+		else if(for_assign)
+			for_record.increment = $1; 
+		else if(for_init)
+			for_record.init = $1; 
+		else if(!for_init)
+			for_record.control = $1; 
+} 
+		| CONST_FLOAT { printf("%f", $1); } 
+		| CONST_CHAR {printf("%c", $1); } 
+		| CONST_STRING {printf("%s", $1); }
 
-ASSIGNMENT: VARIABLE DIMENSION_SEQUENCE {
+ASSIGNMENT: VARIABLE {
+		if(!in_for)
+			printf("%s", $1);
+		else 
+			strcpy(for_record.var, $1);
+} DIMENSION_SEQUENCE {
 		check_variable($1);
 		check_dimensions($1, dimension_count, array_with_dimensions); 
 		dimension_count = 0; 
@@ -290,17 +373,26 @@ ASSIGNMENT: VARIABLE DIMENSION_SEQUENCE {
 		{
 			array_with_dimensions[i] = 0; 
 		}
-} EQ ASSIGNMENT_RHS
+} EQ { 
+	if(!in_for)
+		printf(" = "); } ASSIGNMENT_RHS
 
 ASSIGNMENT_RHS: EXPRESSION 
 				| FUNCTION_CALL
 
-EXPRESSION: NOT EXPRESSION 
+EXPRESSION: NOT {printf(" ! "); } EXPRESSION 
 			| EXPRESSION BINOP EXPRESSION 
 			| EXPRESSION RELOP EXPRESSION 
 			| EXPRESSION LOGOP EXPRESSION 
-			| LB EXPRESSION RB
-			| VARIABLE DIMENSION_SEQUENCE {
+			| LB {printf("("); } EXPRESSION RB {printf(")"); }
+			| VARIABLE { 
+			if(!in_for)	
+				printf(" %s ", $1); 
+			else if(!for_init && !for_assign && strcmp($1, for_record.var)!=0)
+			{
+				strcpy(for_record.var_for_control, $1); 
+			}
+		} DIMENSION_SEQUENCE {
 				check_variable($1); 
 				check_dimensions($1, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
@@ -312,10 +404,14 @@ EXPRESSION: NOT EXPRESSION
 			| CONSTANT
 
 DIMENSION_SEQUENCE: LSB CONST_INT RSB {
+				if(!in_for)
+					printf("[%d]", $2); 
 				array_with_dimensions[dimension_count] = $2; 
 				dimension_count++; 
 } DIMENSION_SEQUENCE
 				| LSB VARIABLE RSB {
+					if(!in_for)
+						printf("[%s]", $2); 
 					check_variable($2);
 					array_with_dimensions[dimension_count] = 0; 
 					dimension_count++; 
@@ -334,6 +430,19 @@ VAR_LIST: VARIABLE {
 } COMMA VAR_LIST 
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
+				print_tabs();
+				printf("%s = ", $1); 
+				for(int i = 0; i<dimension_count; i++)
+					printf("[");
+				printf("0]"); 
+				for(int i = dimension_count-1; i>=0; i--)
+				{
+					printf(" * %d", array_with_dimensions[i]); 
+					if(i)
+						printf("]"); 
+				}	
+				printf("\n");
+				
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
 				{
@@ -367,22 +476,26 @@ DECLARATION_SEQUENCE: LSB CONST_INT RSB {
 	dimension_count++;
 		}
 
-BINOP: PLUS
-        |MINUS
-        |STAR
-        |DIV
-        |MOD
-		|EXP
+BINOP: PLUS {
+		if(!in_for)	
+			printf(" + "); }
+        |MINUS {printf(" - "); }
+        |STAR {printf(" * "); }
+        |DIV {printf(" / "); }
+        |MOD {printf(" %% "); }
+		|EXP {printf(" ** "); }
 
-RELOP: EQCOMPARE
-        |NEQCOMPARE
-        |LTE
-        |LT
-        |GTE
-        |GT
+RELOP: EQCOMPARE {printf(" == "); }
+        |NEQCOMPARE {printf(" != "); }
+        |LTE {printf(" <= "); }
+        |LT {
+			if(!in_for)
+				printf(" < "); }
+        |GTE {printf(" >= "); }
+        |GT {printf(" <= "); }
 
-LOGOP: AND 
-        |OR 
+LOGOP: AND {printf(" and "); }
+        |OR {printf(" or "); }
 
 %%
 
@@ -409,13 +522,6 @@ extern struct symbol_table_row insert_to_table(char var[30], int type, int new_d
 		symbol_tables[current_symbol_table].var_list[temp_var_count].dimension_sequence[i] = new_dim_seq[i]; 
 	}
 
-	printf("\n%s, %d, %d, [", var, type, new_dim);
-
-	for(int j = 0; j<5; j++)
-	{
-		printf("%d ", new_dim_seq[j]); 
-	}
-	printf("] Symbol table: %d Var_count: %d\n", current_symbol_table, temp_var_count); 
 	return symbol_tables[current_symbol_table].var_list[temp_var_count];
 }
 
@@ -447,7 +553,6 @@ extern void add_function(char var[30], int new_type){
 	strcpy(functions[number_of_functions].function_name, var); 
 	functions[number_of_functions].return_type = new_type; 
 	functions[number_of_functions].number_of_parameters = 0; 
-	printf("Function: %s, %d\n", var, new_type);
 	number_of_functions++; 
 }
 
@@ -539,11 +644,19 @@ extern void check_function(char var[30]){
 	}
 }
 
+extern void print_tabs()
+{
+	for(int i=0; i<number_of_tabs; i++)
+	{
+		printf("\t");
+	}
+}
+
 int main()
 {
     yyparse();
-    if(success)
-    	printf("Parsing Successful\n"); 
+    //if(success)
+    	//printf("Parsing Successful\n"); 
     return 0;
 }
 

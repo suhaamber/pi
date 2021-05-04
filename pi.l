@@ -32,6 +32,7 @@
 "continue"  {return CONTINUE; }
 "input"	{return INPUT; }
 "output" {return OUTPUT; }
+"return" {return RETURN;}
 
 [\"](.*)[\"] { strcpy(yylval.const_string, yytext);  return CONST_STRING; }
 [\'](.)[\'] { yylval.const_char = yytext[1]; return CONST_CHAR; }
@@ -39,8 +40,23 @@
 [-]?[1-9][0-9]*     {yylval.const_int = atoi(yytext); return CONST_INT; }
 [0]                 {yylval.const_int = 0; return CONST_INT; }
 
-\/\/(.*) {return COMMENT; }
-"/*"([^*]|\*+[^*/])*\*+"/" {return COMMENT; }
+\/\/(.*) { strcpy(yylval.comment, yytext);return COMMENT; }
+"/*"([^*]|\*+[^*/])*\*+"/" { 
+								char str_temp[100];
+								for(int i = 0, j = 0; yytext[i]!=0; i++)
+								{  
+									if(yytext[i]=='\n')
+										continue; 
+									else if(yytext[i]=='*' && yytext[i+1]=='/')
+									{
+										yytext[i] = 0;
+										break;
+									}
+									str_temp[j++] = yytext[i];
+								} 
+								char *p = str_temp; 
+								p+=2;
+								strcpy(yylval.comment, p);  return COMMENT; }
 
 ","     {return COMMA; }
 ";"	{return SEMICOLON; }
