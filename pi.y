@@ -30,7 +30,7 @@
 		struct symbol_table_row parameters[10]; 
 	} functions[10];
 
-	int in_function = 0; 
+	//int in_function = 0; 
 	int temp_number_of_parameters = 0; 
 	int number_of_functions = 0; 
 	char current_function[30]; 
@@ -102,14 +102,14 @@ FUNCTIONS: FUNCTION FUNCTIONS
 			|
 
 FUNCTION: DATA_TYPE VARIABLE LB  { 
-		in_function = 1; 
+		//in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
 		strcpy(current_function, $2); 
 } PARAMETER_LIST RB BLOCK
 			| DATA_TYPE VARIABLE LB RB {
-		in_function = 1; 
+		//in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
@@ -156,14 +156,11 @@ PARAMETER: DATA_TYPE VARIABLE DECLARATION_SEQUENCE {
 MAIN_FUNC: VOID MAIN LB RB BLOCK
 
 BLOCK: LCB {
-	if(!in_function)
-	{
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
-	}
 } STATEMENTS RCB {
 	current_symbol_table--; 
-	in_function = 0; 
+	
 }
 
 STATEMENTS: STATEMENT STATEMENTS
