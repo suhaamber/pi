@@ -9,6 +9,7 @@
 	int in_loop = 0; 
 	int number_of_tabs = 0; 
 	int is_main = 0; 
+	int temp_input = 0;
 	int array_with_dimensions[5]; 
 
 	struct symbol_table_row
@@ -219,9 +220,10 @@ STATEMENT: {print_tabs();} IF_BLOCK
 		printf("continue"); 
 	} SEMICOLON {printf("\n");}
 
-FUNCTION_CALL: FUNCTION_NAME {} LB { 
+FUNCTION_CALL: FUNCTION_NAME LB { 
 	temp_number_of_parameters = 0;
-	printf("(");
+	if(strcmp(current_function, "input")!=0)
+		printf("(");
 } FUNCTION_VARIABLE_LIST {
 	for(int i = 0; i <= number_of_functions; i++)
 	{
@@ -234,7 +236,10 @@ FUNCTION_CALL: FUNCTION_NAME {} LB {
 			}
 		}
 	}
- }RB { printf(")"); }
+ }RB { 
+	 	if(strcmp(current_function, "input")!=0)
+			printf(")"); 
+			}
 
 FUNCTION_NAME: VARIABLE { 
 			printf("%s", $1); 
@@ -242,7 +247,7 @@ FUNCTION_NAME: VARIABLE {
 			strcpy(current_function, $1); 				
 			}
 				| INPUT {
-			printf("input"); 
+			temp_input = 1; 
 			strcpy(current_function, "input"); 						
 				}
 				| OUTPUT {
@@ -255,7 +260,7 @@ FUNCTION_VARIABLE_LIST: ELEMENT COMMA {
 	{
 		printf(" + ");
 	}
-	else
+	else if(strcmp(current_function, "input")!=0)
 	{
 	printf(",");
 	}
@@ -272,7 +277,16 @@ ELEMENT: CONSTANT {
 		
 		temp_number_of_parameters++; 
 }
-		| VARIABLE {printf("%s", $1); } DIMENSION_SEQUENCE {
+		| VARIABLE {
+				if(strcmp(current_function, "input")!=0)
+					printf("%s", $1); 
+				else
+				{
+					if(!temp_input) print_tabs();
+					temp_input = 0; 
+					printf("%s = input()\n", $1);
+				}
+		} DIMENSION_SEQUENCE {
 			check_variable($1); 
 			temp_number_of_parameters++; 
 			if(strcmp(current_function, "input")!=0 && strcmp(current_function, "output")!=0)
