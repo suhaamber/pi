@@ -300,7 +300,7 @@ ELEMENT: CONSTANT {
 				{
 					if(!temp_input) print_tabs();
 					temp_input = 0; 
-					printf("%s = input()\n", $1);
+					printf("%s", $1);
 				}
 		} DIMENSION_SEQUENCE {
 			check_variable($1); 
@@ -338,6 +338,8 @@ ELEMENT: CONSTANT {
 			{
 				array_with_dimensions[i] = 0; 
 			}
+			if(strcmp(current_function, "input")==0)
+			printf("= input()\n"); 
 		}
 
 IF_BLOCK:  
@@ -428,6 +430,19 @@ VAR_LIST: VARIABLE {
 } COMMA VAR_LIST 
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
+				print_tabs();
+				printf("%s = ", $1); 
+				for(int i = 0; i<dimension_count; i++)
+					printf("[");
+				printf("0]"); 
+				for(int i = dimension_count-1; i>=0; i--)
+				{
+					printf(" * %d", array_with_dimensions[i]); 
+					if(i)
+						printf("]"); 
+				}	
+				printf("\n");
+				
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
 				{
