@@ -32,7 +32,6 @@
 		struct symbol_table_row parameters[10]; 
 	} functions[10];
 
-	int in_function = 0; 
 	int temp_number_of_parameters = 0; 
 	int number_of_functions = 0; 
 	char current_function[30]; 
@@ -104,7 +103,6 @@ FUNCTIONS: FUNCTION {printf("\n"); } FUNCTIONS
 			|
 
 FUNCTION: DATA_TYPE VARIABLE LB  { 
-		in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
@@ -112,7 +110,6 @@ FUNCTION: DATA_TYPE VARIABLE LB  {
 		printf("def %s(", $2); 
 } PARAMETER_LIST RB {printf("):\n"); } BLOCK
 			| DATA_TYPE VARIABLE LB RB {
-		in_function = 1; 
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
 		add_function($2, $1);
@@ -163,15 +160,11 @@ MAIN_FUNC: VOID MAIN LB RB { printf("def main_func():\n"); } BLOCK
 
 BLOCK: LCB {
 		number_of_tabs++; 
-	if(!in_function)
-	{
 		current_symbol_table++; 
 		symbol_tables[current_symbol_table].var_count = -1; 
-	}
 } STATEMENTS RCB {
 	number_of_tabs--; 
 	current_symbol_table--; 
-	in_function = 0; 
 }
 
 STATEMENTS: STATEMENT STATEMENTS
@@ -205,7 +198,7 @@ STATEMENT: {print_tabs();} IF_BLOCK
 	| {print_tabs();} BLOCK
 	| SEMICOLON { print_tabs(); printf("\n");}
 	| COMMENT { print_tabs(); 
-				printf("#%s", $1+2);}
+				printf("#%s", $1);}
 	| DECLARATION SEMICOLON
 	| BREAK {
 		if(!in_loop) {
@@ -587,8 +580,8 @@ extern void print_tabs()
 int main()
 {
     yyparse();
-    if(success)
-    	printf("Parsing Successful\n"); 
+    //if(success)
+    	//printf("Parsing Successful\n"); 
     return 0;
 }
 

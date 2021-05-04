@@ -41,7 +41,22 @@
 [0]                 {yylval.const_int = 0; return CONST_INT; }
 
 \/\/(.*) { strcpy(yylval.comment, yytext);return COMMENT; }
-"/*"([^*]|\*+[^*/])*\*+"/" { strcpy(yylval.comment, yytext); return COMMENT; }
+"/*"([^*]|\*+[^*/])*\*+"/" { 
+								char str_temp[100];
+								for(int i = 0, j = 0; yytext[i]!=0; i++)
+								{  
+									if(yytext[i]=='\n')
+										continue; 
+									else if(yytext[i]=='*' && yytext[i+1]=='/')
+									{
+										yytext[i] = 0;
+										break;
+									}
+									str_temp[j++] = yytext[i];
+								} 
+								char *p = str_temp; 
+								p+=2;
+								strcpy(yylval.comment, p);  return COMMENT; }
 
 ","     {return COMMA; }
 ";"	{return SEMICOLON; }
