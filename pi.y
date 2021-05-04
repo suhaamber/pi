@@ -33,6 +33,14 @@
 		struct symbol_table_row parameters[10]; 
 	} functions[10];
 
+	struct for_translation
+	{
+		char var[30], var_for_control[30];
+		int init, control, increment; 
+	} for_record; 
+	int in_for = 0; 
+	int for_init = 0;
+	int for_assign = 0; 
 	int temp_number_of_parameters = 0; 
 	int number_of_functions = 0; 
 	char current_function[30]; 
@@ -178,9 +186,17 @@ STATEMENT: {print_tabs();} IF_BLOCK
 		printf("while "); 
 } LB EXPRESSION RB { printf(" :\n"); } BLOCK { in_loop=0; }
 	| FOR { in_loop = 1;
-		print_tabs(); 
-		printf("for("); 
-		} LB ASSIGNMENT SEMICOLON {printf(";");} EXPRESSION SEMICOLON {printf(";");} ASSIGNMENT RB { printf("):\n"); } BLOCK { in_loop = 0;}
+		in_for = 1; 
+		for_init = 1;
+		print_tabs();  
+		} LB ASSIGNMENT SEMICOLON { for_init = 0; } EXPRESSION SEMICOLON { for_assign = 1;} ASSIGNMENT RB {
+		for_assign = 0; 
+		in_for = 0;
+		if(for_record.control!=0)
+			printf("for %s in range(%d, %d, %d):\n", for_record.var, for_record.init, for_record.control, for_record.increment); 
+		else 
+			printf("for %s in range(%d, %s, %d):\n", for_record.var, for_record.init, for_record.var_for_control, for_record.increment); 
+		 } BLOCK { in_loop = 0;}
 	| RETURN VARIABLE {
 		print_tabs(); 
 		printf("return %s", $2);
@@ -328,10 +344,25 @@ IF_BLOCK:
 	 IF { printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK ELSE { print_tabs(); printf("else:\n");} BLOCK  
 	| IF {printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK 
 
-CONSTANT: CONST_INT {printf("%d", $1); } | CONST_FLOAT { printf("%f", $1); } | CONST_CHAR {printf("%c", $1); } | CONST_STRING {printf("%s", $1); }
+CONSTANT: CONST_INT {
+		if(!in_for)
+		printf("%d", $1);
+		else if(for_assign)
+			for_record.increment = $1; 
+		else if(for_init)
+			for_record.init = $1; 
+		else if(!for_init)
+			for_record.control = $1; 
+} 
+		| CONST_FLOAT { printf("%f", $1); } 
+		| CONST_CHAR {printf("%c", $1); } 
+		| CONST_STRING {printf("%s", $1); }
 
 ASSIGNMENT: VARIABLE {
-		printf("%s", $1); 
+		if(!in_for)
+			printf("%s", $1);
+		else 
+			strcpy(for_record.var, $1);
 } DIMENSION_SEQUENCE {
 		check_variable($1);
 		check_dimensions($1, dimension_count, array_with_dimensions); 
@@ -340,7 +371,9 @@ ASSIGNMENT: VARIABLE {
 		{
 			array_with_dimensions[i] = 0; 
 		}
-} EQ { printf(" = "); } ASSIGNMENT_RHS
+} EQ { 
+	if(!in_for)
+		printf(" = "); } ASSIGNMENT_RHS
 
 ASSIGNMENT_RHS: EXPRESSION 
 				| FUNCTION_CALL
@@ -350,7 +383,14 @@ EXPRESSION: NOT {printf(" ! "); } EXPRESSION
 			| EXPRESSION RELOP EXPRESSION 
 			| EXPRESSION LOGOP EXPRESSION 
 			| LB {printf("("); } EXPRESSION RB {printf(")"); }
-			| VARIABLE { printf(" %s ", $1); } DIMENSION_SEQUENCE {
+			| VARIABLE { 
+			if(!in_for)	
+				printf(" %s ", $1); 
+			else if(!for_init && !for_assign && strcmp($1, for_record.var)!=0)
+			{
+				strcpy(for_record.var_for_control, $1); 
+			}
+		} DIMENSION_SEQUENCE {
 				check_variable($1); 
 				check_dimensions($1, dimension_count, array_with_dimensions); 
 				dimension_count = 0; 
@@ -362,12 +402,14 @@ EXPRESSION: NOT {printf(" ! "); } EXPRESSION
 			| CONSTANT
 
 DIMENSION_SEQUENCE: LSB CONST_INT RSB {
-				printf("[%d]", $2); 
+				if(!in_for)
+					printf("[%d]", $2); 
 				array_with_dimensions[dimension_count] = $2; 
 				dimension_count++; 
 } DIMENSION_SEQUENCE
 				| LSB VARIABLE RSB {
-					printf("[%s]", $2); 
+					if(!in_for)
+						printf("[%s]", $2); 
 					check_variable($2);
 					array_with_dimensions[dimension_count] = 0; 
 					dimension_count++; 
@@ -419,7 +461,9 @@ DECLARATION_SEQUENCE: LSB CONST_INT RSB {
 	dimension_count++;
 		}
 
-BINOP: PLUS {printf(" + "); }
+BINOP: PLUS {
+		if(!in_for)	
+			printf(" + "); }
         |MINUS {printf(" - "); }
         |STAR {printf(" * "); }
         |DIV {printf(" / "); }
@@ -429,7 +473,9 @@ BINOP: PLUS {printf(" + "); }
 RELOP: EQCOMPARE {printf(" == "); }
         |NEQCOMPARE {printf(" != "); }
         |LTE {printf(" <= "); }
-        |LT {printf(" < "); }
+        |LT {
+			if(!in_for)
+				printf(" < "); }
         |GTE {printf(" >= "); }
         |GT {printf(" <= "); }
 
