@@ -1,0 +1,25 @@
+// factorial (recursive)
+//this example demonstrates
+//declaration, assignment, single dimension arrays
+//input, output, if, for loop
+//function definition, recursive functions
+
+int factorial(int n)
+{
+    if (n == 0)
+    {
+        return 1;
+    }   
+    int temp, temp2;
+    temp = n - 1;  
+    temp2 = n * factorial(temp); 
+    return temp2;
+}
+
+void main()
+{
+    int num, fact;
+    num = 5; 
+    fact = factorial(num);
+    output("Factorial of 5 is:", fact);
+}

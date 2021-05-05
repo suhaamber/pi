@@ -1,0 +1,14 @@
+//this example demonstrates 
+//single line and multiline comments
+
+void main()
+{
+    //this is a single line comment
+
+    /*this is a 
+    multiline 
+    comment*/
+
+    int i; 
+    i = 1; 
+}
