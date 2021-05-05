@@ -40,7 +40,9 @@
 [-]?[1-9][0-9]*     {yylval.const_int = atoi(yytext); return CONST_INT; }
 [0]                 {yylval.const_int = 0; return CONST_INT; }
 
-\/\/(.*) { strcpy(yylval.comment, yytext);return COMMENT; }
+\/\/(.*) { 	char *p = yytext; 
+			p+=2;
+			strcpy(yylval.comment, p);  return COMMENT; }
 "/*"([^*]|\*+[^*/])*\*+"/" { 
 								char str_temp[100];
 								for(int i = 0, j = 0; yytext[i]!=0; i++)
