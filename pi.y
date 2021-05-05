@@ -101,7 +101,10 @@ char comment[150];
 %start PROGRAM
 
 %%
-PROGRAM: PACKAGES FUNCTIONS MAIN_FUNC { printf("\nmain_func()\n\n");}
+PROGRAM: COMMENTS PACKAGES FUNCTIONS MAIN_FUNC { printf("\nmain_func()\n\n");}
+
+COMMENTS: COMMENT COMMENTS 
+			|
 
 PACKAGES: 	PACKAGE {printf("\n"); } PACKAGES 
 			| 
@@ -385,6 +388,7 @@ EXPRESSION: NOT {printf(" ! "); } EXPRESSION
 			| EXPRESSION RELOP EXPRESSION 
 			| EXPRESSION LOGOP EXPRESSION 
 			| LB {printf("("); } EXPRESSION RB {printf(")"); }
+			| FUNCTION_CALL
 			| VARIABLE { 
 			if(!in_for)	
 				printf(" %s ", $1); 
