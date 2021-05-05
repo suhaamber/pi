@@ -182,7 +182,7 @@ BLOCK: LCB {
 STATEMENTS: STATEMENT STATEMENTS
 			|
 
-STATEMENT: {print_tabs();} IF_BLOCK 
+STATEMENT: CONDITIONAL_STATEMENTS
 	| WHILE { 
 		in_loop = 1;
 		print_tabs(); 
@@ -239,6 +239,12 @@ STATEMENT: {print_tabs();} IF_BLOCK
 		printf("continue"); 
 	} SEMICOLON {printf("\n");}
 
+CONDITIONAL_STATEMENTS: IF_BLOCK | IF_BLOCK ELSE_BLOCK
+
+IF_BLOCK:  IF { print_tabs(); printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK 
+
+ELSE_BLOCK: ELSE { printf("\n"); print_tabs(); printf("else:\n");} BLOCK 
+
 FUNCTION_CALL: FUNCTION_NAME LB { 
 	temp_number_of_parameters = 0;
 	if(strcmp(current_function, "input")!=0)
@@ -281,7 +287,7 @@ FUNCTION_VARIABLE_LIST: ELEMENT COMMA {
 	}
 	else if(strcmp(current_function, "input")!=0)
 	{
-	printf(",");
+		printf(",");
 	}
  } FUNCTION_VARIABLE_LIST 
 						| ELEMENT
@@ -344,10 +350,6 @@ ELEMENT: CONSTANT {
 			if(strcmp(current_function, "input")==0)
 			printf("= input()\n"); 
 		}
-
-IF_BLOCK:  
-	 IF { printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK ELSE { print_tabs(); printf("else:\n");} BLOCK  
-	| IF {printf("if ");} LB EXPRESSION RB {printf(":\n");} BLOCK 
 
 CONSTANT: CONST_INT {
 		if(!in_for)
