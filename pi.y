@@ -281,6 +281,7 @@ FUNCTION_NAME: VARIABLE {
 				}
 
 FUNCTION_VARIABLE_LIST: ELEMENT COMMA {
+	printf("%s\n", current_function); 
 	if(strcmp(current_function, "output")==0)
 	{
 		printf(" + ");
@@ -465,6 +466,19 @@ VAR_LIST: VARIABLE {
 }  
 			| VARIABLE DECLARATION_SEQUENCE {
 				insert_to_table($1, current_data_type, dimension_count, array_with_dimensions); 
+				print_tabs();
+				printf("%s = ", $1); 
+				for(int i = 0; i<dimension_count; i++)
+					printf("[");
+				printf("0]"); 
+				for(int i = dimension_count-1; i>=0; i--)
+				{
+					printf(" * %d", array_with_dimensions[i]); 
+					if(i)
+						printf("]"); 
+				}	
+				printf("\n");
+				
 				dimension_count = 0; 
 				for(int i=0; i<5; i++) 
 				{
