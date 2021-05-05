@@ -217,8 +217,9 @@ STATEMENT: CONDITIONAL_STATEMENTS
 	| { print_tabs(); } FUNCTION_CALL SEMICOLON {printf("\n");}
 	| {print_tabs();} BLOCK
 	| SEMICOLON { print_tabs(); printf("\n");}
-	| COMMENT { print_tabs(); 
-				printf("#%s", $1);}
+	| COMMENT { printf("\n");
+				print_tabs(); 
+				printf("#%s\n", $1);}
 	| DECLARATION SEMICOLON
 	| BREAK {
 		if(!in_loop) {
@@ -281,7 +282,6 @@ FUNCTION_NAME: VARIABLE {
 				}
 
 FUNCTION_VARIABLE_LIST: ELEMENT COMMA {
-	printf("%s\n", current_function); 
 	if(strcmp(current_function, "output")==0)
 	{
 		printf(" + ");
